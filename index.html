@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examen de Evaluación de Inglés</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.10.0/gsap.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f6f8;
+      transition: background-color 0.3s;
+    }
+    .navbar {
+      background-color: #343a40;
+    }
+    .navbar a {
+      color: white !important;
+    }
+    .progress-bar {
+      height: 20px;
+    }
+    .sticky-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999;
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 50%;
+      box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+    }
+    .progress-container {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #343a40;
+      padding: 10px;
+    }
+    .progress-bar {
+      transition: width 0.5s ease;
+    }
+    .dark-mode {
+      background-color: #2c2c2c;
+      color: white;
+    }
+    .light-mode {
+      background-color: #f4f6f8;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Examen de Inglés</a>
+    </div>
+  </nav>
+
+  <!-- Barra de progreso -->
+  <div class="progress-container">
+    <div class="progress">
+      <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+  </div>
+
+  <!-- Contenedor de preguntas -->
+  <div class="container mt-5">
+    <h2 id="question-title">Pregunta 1</h2>
+    <div id="question-container"></div>
+    <div class="mt-4">
+      <button class="btn btn-primary" id="next-btn">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- Botón flotante "Volver al inicio" -->
+  <a href="#question-title" class="sticky-btn" title="Volver al inicio">
+    <i class="fas fa-home"></i>
+  </a>
+
+  <!-- Formulario de resultados -->
+  <div id="result-form" class="mt-5" style="display:none;">
+    <h4>Formulario de Resultados</h4>
+    <form id="resultForm">
+      <div class="mb-3">
+        <label for="name" class="form-label">Nombre Completo</label>
+        <input type="text" class="form-control" id="name" required>
+      </div>
+      <div class="mb-3">
+        <label for="email" class="form-label">Correo Electrónico</label>
+        <input type="email" class="form-control" id="email" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Enviar Resultados</button>
+    </form>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Preguntas de ejemplo
+    const questions = [
+      {
+        type: 'text',
+        question: 'Choose the correct sentence:',
+        options: [
+          'She don’t like pizza.',
+          'She doesn’t likes pizza.',
+          'She doesn’t like pizza.',
+          'She don’t likes pizza.'
+        ],
+        answer: 'She doesn’t like pizza.'
+      },
+      {
+        type: 'image',
+        question: 'What is this animal called in English?',
+        src: 'https://upload.wikimedia.org/wikipedia/commons/7/71/Elephant_africa.jpg',
+        options: ['Giraffe', 'Elephant', 'Rhino', 'Tiger'],
+        answer: 'Elephant'
+      },
+      {
+        type: 'audio',
+        question: 'Listen and choose the correct word:',
+        src: 'https://ssl.gstatic.com/dictionary/static/sounds/oxford/book--_gb_1.mp3',
+        options: ['Book', 'Cook', 'Look', 'Hook'],
+        answer: 'Book'
+      }
+    ];
+
+    let currentQuestion = 0;
+    let correctAnswers = 0;
+
+    // Función para cargar una pregunta
+    function loadQuestion() {
+      const question = questions[currentQuestion];
+      let questionHTML = '';
+      if (question.type === 'text') {
+        questionHTML = `<p>${question.question}</p>`;
+        question.options.forEach((option, index) => {
+          questionHTML += `
+            <div>
+              <input type="radio" name="answer" value="${option}" id="option-${index}">
+              <label for="option-${index}">${option}</label>
+            </div>`;
+        });
+      } else if (question.type === 'image') {
+        questionHTML = `<p>${question.question}</p><img src="${question.src}" class="img-fluid" alt="question-image">`;
+        question.options.forEach((option, index) => {
+          questionHTML += `
+            <div>
+              <input type="radio" name="answer" value="${option}" id="option-${index}">
+              <label for="option-${index}">${option}</label>
+            </div>`;
+        });
+      } else if (question.type === 'audio') {
+        questionHTML = `<p>${question.question}</p><audio controls><source src="${question.src}" type="audio/mpeg"></audio>`;
+        question.options.forEach((option, index) => {
+          questionHTML += `
+            <div>
+              <input type="radio" name="answer" value="${option}" id="option-${index}">
+              <label for="option-${index}">${option}</label>
+            </div>`;
+        });
+      }
+      document.getElementById('question-container').innerHTML = questionHTML;
+    }
+
+    // Función para verificar la respuesta
+    function checkAnswer() {
+      const selectedOption = document.querySelector('input[name="answer"]:checked');
+      if (selectedOption && selectedOption.value === questions[currentQuestion].answer) {
+        correctAnswers++;
+      }
+    }
+
+    // Función para actualizar la barra de progreso
+    function updateProgress() {
+      const progress = ((currentQuestion + 1) / questions.length) * 100;
+      document.getElementById('progress-bar').style.width = `${progress}%`;
+      document.getElementById('progress-bar').setAttribute('aria-valuenow', progress);
+    }
+
+    // Cargar la primera pregunta
+    loadQuestion();
+    updateProgress();
+
+    // Función para avanzar a la siguiente pregunta
+    document.getElementById('next-btn').addEventListener('click', () => {
+      checkAnswer();
+      if (currentQuestion < questions.length - 1) {
+        currentQuestion++;
+        loadQuestion();
+        updateProgress();
+      } else {
+        document.getElementById('result-form').style.display = 'block';
+        document.getElementById('question-container').style.display = 'none';
+        document.getElementById('next-btn').style.display = 'none';
+      }
+    });
+
+    // Enviar resultados
+    document.getElementById('resultForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+
+      // Aquí puedes integrar EmailJS
+      // emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {name, email, correctAnswers})
+      console.log(`Nombre: ${name}, Email: ${email}, Respuestas correctas: ${correctAnswers}`);
+
+      // Guardar en LocalStorage
+      localStorage.setItem('result', JSON.stringify({name, email, correctAnswers}));
+
+      alert('Resultados enviados correctamente!');
+    });
+  </script>
+
+  <!-- Modo Claro/Oscuro -->
+  <script>
+    let darkMode = false;
+    document.body.addEventListener('dblclick', () => {
+      darkMode = !darkMode;
+      document.body.classList.toggle('dark-mode', darkMode);
+      document.body.classList.toggle('light-mode', !darkMode);
+    });
+  </script>
+</body>
+</html>
