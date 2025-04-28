@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PRO English Evaluation Test</title>
+  <style>
+    /* TailwindCSS Embebido - Minimal */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9fafb;
+      color: #111827;
+      transition: background 0.5s, color 0.5s;
+    }
+    body.dark {
+      background-color: #1f2937;
+      color: #f9fafb;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+    }
+    button {
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    .hidden { display: none; }
+    .question img, .question audio {
+      max-width: 100%;
+      margin-top: 1rem;
+    }
+    .timer {
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .feedback {
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+    input[type="text"], input[type="email"] {
+      border: 1px solid #ccc;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+      width: 100%;
+      border-radius: 0.5rem;
+    }
+  </style>
+  <!-- FontAwesome -->
+  <script src="https://kit.fontawesome.com/a2e0da0103.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+<div class="container">
+
+  <!-- Start Screen -->
+  <div id="start-screen" class="text-center">
+    <h1 class="text-3xl font-bold mb-4">🎯 English Level Evaluation</h1>
+    <p class="mb-4">Test your English skills with 50 real-world questions! You will have 30 seconds per question. Good luck!</p>
+    <button onclick="startQuiz()" id="start-button" class="text-lg">
+      <i class="fas fa-play"></i> Start Test
+    </button>
+  </div>
+
+  <!-- Quiz Screen -->
+  <div id="quiz-screen" class="hidden">
+    <div id="timer" class="timer"></div>
+    <div id="quiz"></div>
+    <div id="feedback" class="feedback"></div>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="result-screen" class="hidden">
+    <h2 class="text-2xl font-bold mb-4">Your Results</h2>
+    <canvas id="resultChart" width="300" height="300"></canvas>
+    <div id="summary" class="mt-4"></div>
+    <div class="mt-6">
+      <button onclick="downloadCSV()"><i class="fas fa-file-csv"></i> Download CSV</button>
+      <button onclick="downloadChart()"><i class="fas fa-image"></i> Download Chart</button>
+      <button onclick="reviewAnswers()"><i class="fas fa-eye"></i> Review Answers</button>
+    </div>
+    <div class="mt-6">
+      <form id="sendForm">
+        <input type="text" id="name" placeholder="Full Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <button type="submit"><i class="fas fa-paper-plane"></i> Send Results</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modo Oscuro -->
+  <button onclick="toggleDarkMode()" class="fixed bottom-4 right-4 bg-gray-800 text-white p-2 rounded-full shadow-lg">
+    <i class="fas fa-adjust"></i>
+  </button>
+
+</div>
+
+<!-- Chart.js y GSAP -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<script>
+  const questions = [
+    {
+      question: "What is the capital of England?",
+      options: ["Paris", "London", "Madrid", "Rome"],
+      correct: 1
+    },
+    {
+      question: "Choose the correct sentence:",
+      options: ["She go to school.", "She goes to school.", "She going to school.", "She gone to school."],
+      correct: 1
+    },
+    {
+      question: "Identify the object:",
+      options: ["Chair", "Table", "Car", "Phone"],
+      correct: 3,
+      image: "https://via.placeholder.com/150"
+    },
+    {
+      question: "Listen and choose what you hear:",
+      options: ["Cat", "Dog", "Bird", "Fish"],
+      correct: 0,
+      audio: "data:audio/mp3;base64,//...fakebase64" // Simulado, reemplazar por audio real
+    },
+    // ¡Agrega aquí hasta completar 50 preguntas!
+  ];
+
+  let currentQuestion = 0;
+  let score = 0;
+  let answers = [];
+  let timerInterval;
+
+  function startQuiz() {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('quiz-screen').classList.remove('hidden');
+    showQuestion();
+  }
+
+  function showQuestion() {
+    if (currentQuestion >= questions.length) {
+      endQuiz();
+      return;
+    }
+    const q = questions[currentQuestion];
+    const quizDiv = document.getElementById('quiz');
+    let html = `<h2 class="text-xl font-bold mb-2">${currentQuestion + 1}. ${q.question}</h2>`;
+    if (q.image) html += `<img src="${q.image}" loading="lazy" alt="Question Image" class="rounded">`;
+    if (q.audio) html += `<audio controls src="${q.audio}" class="mt-4"></audio>`;
+    html += `<div class="mt-4">`;
+    q.options.forEach((opt, idx) => {
+      html += `<button onclick="answer(${idx})" class="block w-full p-2 m-1 bg-blue-500 hover:bg-blue-600 rounded">${opt}</button>`;
+    });
+    html += `</div>`;
+    quizDiv.innerHTML = html;
+    startTimer();
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    let timeLeft = 30;
+    document.getElementById('timer').textContent = `⏰ ${timeLeft} seconds`;
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      document.getElementById('timer').textContent = `⏰ ${timeLeft} seconds`;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        answer(-1);
+      }
+    }, 1000);
+  }
+
+  function answer(selected) {
+    clearInterval(timerInterval);
+    const q = questions[currentQuestion];
+    const feedback = document.getElementById('feedback');
+    if (selected === q.correct) {
+      score++;
+      feedback.textContent = "✅ Correct!";
+      feedback.style.color = "green";
+    } else {
+      feedback.textContent = `❌ Incorrect! Correct answer: ${q.options[q.correct]}`;
+      feedback.style.color = "red";
+    }
+    answers.push({question: q.question, selected, correct: q.correct});
+    setTimeout(() => {
+      feedback.textContent = "";
+      currentQuestion++;
+      showQuestion();
+    }, 1000);
+  }
+
+  function endQuiz() {
+    document.getElementById('quiz-screen').classList.add('hidden');
+    document.getElementById('result-screen').classList.remove('hidden');
+    showResults();
+    saveLocal();
+  }
+
+  function showResults() {
+    const ctx = document.getElementById('resultChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Correct', 'Incorrect'],
+        datasets: [{
+          data: [score, questions.length - score],
+          backgroundColor: ['#10b981', '#ef4444']
+        }]
+      },
+      options: {responsive: true, plugins: {legend: {position: 'bottom'}}}
+    });
+    gsap.from("#resultChart", {duration: 1, scale: 0, ease: "bounce.out"});
+
+    const summary = document.getElementById('summary');
+    summary.innerHTML = `
+      <p><strong>Correct Answers:</strong> ${score}</p>
+      <p><strong>Incorrect Answers:</strong> ${questions.length - score}</p>
+      <p><strong>Your Level:</strong> ${calculateLevel(score)}</p>
+      <p class="mt-4 font-bold">${motivationalMessage(score)}</p>
+    `;
+  }
+
+  function calculateLevel(score) {
+    if (score <= 5) return "A1.1";
+    if (score <= 10) return "A1.2";
+    if (score <= 15) return "A1.3";
+    if (score <= 20) return "B1.1";
+    if (score <= 25) return "B1.2";
+    if (score <= 30) return "B1.3";
+    if (score <= 35) return "C1.1";
+    if (score <= 40) return "C1.2";
+    if (score <= 45) return "C1.3";
+    return "D1.1";
+  }
+
+  function motivationalMessage(score) {
+    if (score <= 15) return "Keep practicing, you're on the right track!";
+    if (score <= 30) return "Good job! You have a solid foundation!";
+    if (score <= 45) return "Excellent! Your English is very strong!";
+    return "Outstanding! You're a near-native speaker!";
+  }
+
+  function downloadCSV() {
+    const csv = ["Question,Selected,Correct"];
+    answers.forEach(a => {
+      csv.push(`"${a.question}","${a.selected >= 0 ? questions[currentQuestion-1].options[a.selected] : 'No answer'}","${questions[currentQuestion-1].options[a.correct]}"`);
+    });
+    const blob = new Blob([csv.join("\n")], {type: 'text/csv'});
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'english_test_results.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  function downloadChart() {
+    const chart = document.getElementById('resultChart');
+    const link = document.createElement('a');
+    link.href = chart.toDataURL('image/png');
+    link.download = 'chart.png';
+    link.click();
+  }
+
+  document.getElementById('sendForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const body = `Hello,%0D%0AMy English level test results:%0D%0AScore: ${score}/${questions.length}%0D%0ALevel: ${calculateLevel(score)}%0D%0AThank you!`;
+    window.location.href = `mailto:${email}?subject=English Test Results for ${name}&body=${body}`;
+  });
+
+  function saveLocal() {
+    localStorage.setItem('englishTestResult', JSON.stringify({score, answers}));
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark');
+  }
+
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.body.classList.add('dark');
+  }
+</script>
+</body>
+</html>
